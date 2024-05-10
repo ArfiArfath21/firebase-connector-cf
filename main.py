@@ -38,8 +38,11 @@ def firebase_connector(request):
         
         if request_json['request_type'] == 'getAllUserInfo':
             collection = db.collection(COLLECTION_NAME)
-            doc = collection.document().get().to_dict()
-            return (doc, 200, headers)
+            docs = collection.stream()
+            entries = {}
+            for doc in docs:
+                entries[f"{doc.id}"] =  doc.to_dict()
+            return ({"data": entries}, 200, headers)
         
         if request_json['request_type'] == 'createUser':
             collection = db.collection(COLLECTION_NAME)
@@ -77,6 +80,17 @@ def firebase_connector(request):
                 return ({"message": "True"}, 200, headers)
             else:
                 return ({"message": "False"}, 200, headers)
+        
+        if request_json['request_type'] == 'deleteUser':
+            collection = db.collection(COLLECTION_NAME)
+            if "," in str(request_json['user_id']):
+                for user_id in str(request_json['user_id']).split(","):
+                    collection.document(user_id).delete()
+            else:
+                collection.document(str(request_json['user_id'])).delete()
+            return ({"message": f"User {request_json['user_id']} Deleted"}, 200, headers)
+        else:
+            return ({"message": "Invalid Request Type"}, 401, headers)
 
     if request.method == 'GET':
         return 'Hello World!'
