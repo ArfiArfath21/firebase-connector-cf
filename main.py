@@ -81,6 +81,19 @@ def firebase_connector(request):
             else:
                 return ({"message": "False"}, 200, headers)
         
+        if request_json['request_type'] == 'findUser':
+            collection = db.collection(COLLECTION_NAME)
+            docs = collection.stream()
+            key = request_json["withKey"]
+            value = request_json["withValue"]
+            found_user = False
+            for doc in docs:
+                doc_dict = doc.to_dict()
+                if str(doc_dict[key]) == str(value):
+                    found_user = doc.id
+            
+            return ({"user_id": found_user}, 200, headers)
+        
         if request_json['request_type'] == 'deleteUser':
             collection = db.collection(COLLECTION_NAME)
             if "," in str(request_json['user_id']):
@@ -89,6 +102,7 @@ def firebase_connector(request):
             else:
                 collection.document(str(request_json['user_id'])).delete()
             return ({"message": f"User {request_json['user_id']} Deleted"}, 200, headers)
+        
         else:
             return ({"message": "Invalid Request Type"}, 401, headers)
 
