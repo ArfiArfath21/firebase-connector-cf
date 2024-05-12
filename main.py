@@ -3,7 +3,8 @@ from google.cloud import firestore
 import json
 
 db = firestore.Client()
-COLLECTION_NAME = "example_collection"
+COLLECTION_NAME = "etle-users"
+LEADERBOARD_COLLECTION_NAME = "etle-leaderboard"
 
 @functions_framework.http
 def firebase_connector(request):
@@ -88,10 +89,13 @@ def firebase_connector(request):
             value = request_json["withValue"]
             found_user = False
             for doc in docs:
-                doc_dict = doc.to_dict()
-                if str(doc_dict[key]) == str(value):
-                    found_user = doc.id
-            
+                try:
+                    doc_dict = doc.to_dict()
+                    if key in doc_dict:
+                        if str(doc_dict[key]) == str(value):
+                            found_user = doc.id
+                except Exception as err:
+                    print(f"Encountered an error: {err}")
             return ({"user_id": found_user}, 200, headers)
         
         if request_json['request_type'] == 'deleteUser':
@@ -103,6 +107,20 @@ def firebase_connector(request):
                 collection.document(str(request_json['user_id'])).delete()
             return ({"message": f"User {request_json['user_id']} Deleted"}, 200, headers)
         
+        if request_json['request_type'] == 'addToLeaderboard':
+            collection = db.collection(LEADERBOARD_COLLECTION_NAME)
+            leaderboard_doc = {}
+            leaderboard_doc["startTime"] = request_json["update_dict"]["startTime"]
+            leaderboard_doc["endTime"] = request_json["update_dict"]["endTime"]
+            leaderboard_doc["activity"] = request_json["update_dict"]["activity"]
+            
+            for winner_id, winner in enumerate(request_json['update_dict']["winner_data"]):
+                leaderboard_doc[f"winner_{winner_id+1}"] = winner
+            
+            doc = collection.document(f"{leaderboard_doc['activity']}_{leaderboard_doc['startTime']}")
+            doc.set(leaderboard_doc)
+            return ({"message": "Success"}, 200, headers)
+
         else:
             return ({"message": "Invalid Request Type"}, 401, headers)
 
